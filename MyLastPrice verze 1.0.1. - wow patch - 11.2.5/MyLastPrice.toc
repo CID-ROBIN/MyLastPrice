@@ -1,8 +1,0 @@
-## Interface: 110205
-## Title: My Last Price
-## Notes: Ukládá poslední cenu vystaveného itemu a ukazuje ji v tooltipu
-## Author: CID
-## Version: 1.0
-## SavedVariables: MyLastPriceDB
-
-MyLastPrice.lua
