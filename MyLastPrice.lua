@@ -22,13 +22,12 @@ local function MLP_FormatMoney(copper)
     return out
 end
 
--- Add price to tooltip (ordinary items, under vendor price)
+-- Add price to tooltip
 local function MLP_AddPriceToTooltip(tooltip)
     if not tooltip or not tooltip.GetTooltipData then return end
     local tdata = tooltip:GetTooltipData()
     if not tdata then return end
 
-    -- Ignore battle pets here; they use BattlePetTooltip instead
     if tdata.battlePetSpeciesID and tdata.battlePetSpeciesID > 0 then return end
 
     local key
@@ -38,34 +37,38 @@ local function MLP_AddPriceToTooltip(tooltip)
         local itemID = GetItemInfoInstant(tdata.hyperlink)
         if itemID then key = itemID end
     end
+
+    if not key and tooltip.GetItem then
+        local _, link = tooltip:GetItem()
+        if link then
+            local itemID = GetItemInfoInstant(link)
+            if itemID then key = itemID end
+        end
+    end
+
     if not key then return end
 
     local price = MyLastPriceDB[key]
     if not price then return end
 
-    -- Insert line under vendor price if present; otherwise append
-    local inserted = false
-    if tdata.lines then
-        for _, line in ipairs(tdata.lines) do
-            if line.type == Enum.TooltipDataLineType.SellPrice then
-                tooltip:AddLine("|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price))
-                inserted = true
-                break
-            end
+    for i = 1, tooltip:NumLines() do
+        local line = _G[tooltip:GetName().."TextLeft"..i]
+        if line and line:GetText() and line:GetText():find("Moje poslední cena:") then
+            return
         end
     end
-    if not inserted then
-        tooltip:AddLine("|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price))
-    end
+
+    tooltip:AddLine("|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price))
     tooltip:Show()
 end
 
--- Register processors (ordinary items only)
+-- Register processors
 if TooltipDataProcessor and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, MLP_AddPriceToTooltip)
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.ItemKey, MLP_AddPriceToTooltip)
 end
 
--- Battle pet cages: show price in BattlePetTooltip via SetBagItem (bag hover)
+-- Battle pet cages
 hooksecurefunc(GameTooltip, "SetBagItem", function(tooltip, bag, slot)
     local info = C_Container.GetContainerItemInfo(bag, slot)
     if not info or not info.hyperlink then return end
@@ -94,27 +97,28 @@ end
 
 -- Save prices when posting to Auction House
 if C_AuctionHouse then
-    -- Battle pet cages (PostItem with ItemLocation)
     if C_AuctionHouse.PostItem then
         hooksecurefunc(C_AuctionHouse, "PostItem", function(itemLocation, duration, quantity, bid, buyout, auctionType)
             if not buyout or buyout <= 0 then return end
             if not itemLocation or not C_Item.IsItemDataCached(itemLocation) then return end
 
             local itemID = C_Item.GetItemID(itemLocation)
-            if itemID ~= 82800 then return end  -- only pet cages
+            if not itemID then return end
+            local link = C_Item.GetItemLink(itemLocation) or ("item:"..itemID)
 
-            local link = C_Item.GetItemLink(itemLocation)
-            if not link then return end
+            if itemID == 82800 then
+                local speciesID = link:match("battlepet:(%d+)")
+                if not speciesID then return end
+                local key = "pet:" .. speciesID
+                MyLastPriceDB[key] = buyout
+            else
+                MyLastPriceDB[itemID] = buyout
+            end
 
-            local speciesID = link:match("battlepet:(%d+)")
-            if not speciesID then return end
-
-            local key = "pet:" .. speciesID
-            MyLastPriceDB[key] = buyout
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffd000[MyLastPrice]|r Cena uložena pro: " .. link .. " (" .. MLP_FormatMoney(buyout) .. ")")
         end)
     end
 
-    -- Commodities (stackables)
     if C_AuctionHouse.PostCommodity then
         hooksecurefunc(C_AuctionHouse, "PostCommodity", function(itemLocation, duration, quantity, unitPrice)
             if not unitPrice or unitPrice <= 0 then return end
@@ -122,18 +126,10 @@ if C_AuctionHouse then
 
             local itemID = C_Item.GetItemID(itemLocation)
             if not itemID then return end
+            local link = C_Item.GetItemLink(itemLocation) or ("item:"..itemID)
 
             MyLastPriceDB[itemID] = unitPrice
-        end)
-    end
-
-    -- Ordinary items
-    if C_AuctionHouse.PostItemKeyInfo then
-        hooksecurefunc(C_AuctionHouse, "PostItemKeyInfo", function(itemKey, duration, quantity, bid, buyout)
-            if not buyout or buyout <= 0 then return end
-            if not itemKey or not itemKey.itemID or itemKey.itemID == 82800 then return end
-
-            MyLastPriceDB[itemKey.itemID] = buyout
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffd000[MyLastPrice]|r Cena uložena pro: " .. link .. " (" .. MLP_FormatMoney(unitPrice) .. ")")
         end)
     end
 end

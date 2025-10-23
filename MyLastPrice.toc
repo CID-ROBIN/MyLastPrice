@@ -2,7 +2,7 @@
 ## Title: My Last Price
 ## Notes: Ukládá poslední cenu vystaveného itemu a ukazuje ji v tooltipu
 ## Author: CID
-## Version: 1.0.2
+## Version: 1.0.3
 ## SavedVariables: MyLastPriceDB
 
 MyLastPrice.lua
