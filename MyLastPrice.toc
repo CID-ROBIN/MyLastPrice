@@ -1,4 +1,4 @@
-## Interface: 110205
+## Interface: 120000
 ## Title: My Last Price
 ## Notes: Ukládá poslední cenu vystaveného itemu a ukazuje ji v tooltipu
 ## Author: CID
