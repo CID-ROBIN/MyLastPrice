@@ -38,28 +38,45 @@ local function MLP_AddPriceToTooltip(tooltip)
         if itemID then key = itemID end
     end
 
-    if not key and tooltip.GetItem then
-        local _, link = tooltip:GetItem()
-        if link then
-            local itemID = GetItemInfoInstant(link)
-            if itemID then key = itemID end
-        end
-    end
-
     if not key then return end
 
     local price = MyLastPriceDB[key]
     if not price then return end
 
-    for i = 1, tooltip:NumLines() do
-        local line = _G[tooltip:GetName().."TextLeft"..i]
-        if line and line:GetText() and line:GetText():find("Moje poslední cena:") then
-            return
-        end
+    -- Create background
+    if not tooltip.MyLastPriceBG then
+        tooltip.MyLastPriceBG = CreateFrame("Frame", nil, tooltip, "BackdropTemplate")
+        tooltip.MyLastPriceBG:SetPoint("TOPLEFT", tooltip, "BOTTOMLEFT", 0, -2)
+        tooltip.MyLastPriceBG:SetHeight(18)
+
+        tooltip.MyLastPriceBG:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 12,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 }
+        })
+        tooltip.MyLastPriceBG:SetBackdropColor(0, 0, 0, 0.85)
+
+        tooltip.MyLastPriceBG:SetFrameLevel(tooltip:GetFrameLevel() - 1)
     end
 
-    tooltip:AddLine("|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price))
-    tooltip:Show()
+    -- Create text
+    if not tooltip.MyLastPriceLine then
+        tooltip.MyLastPriceLine = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
+        tooltip.MyLastPriceLine:SetPoint("LEFT", tooltip.MyLastPriceBG, "LEFT", 6, 0)
+        tooltip.MyLastPriceLine:SetJustifyH("LEFT")
+    end
+
+    -- Set text
+    local text = "|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price)
+    tooltip.MyLastPriceLine:SetText(text)
+
+    -- Resize background to match text width
+    local width = tooltip.MyLastPriceLine:GetStringWidth() + 12
+    tooltip.MyLastPriceBG:SetWidth(width)
+
+    tooltip.MyLastPriceBG:Show()
+    tooltip.MyLastPriceLine:Show()
 end
 
 -- Register processors
@@ -72,6 +89,7 @@ end
 hooksecurefunc(GameTooltip, "SetBagItem", function(tooltip, bag, slot)
     local info = C_Container.GetContainerItemInfo(bag, slot)
     if not info or not info.hyperlink then return end
+
     local speciesID = info.hyperlink:match("battlepet:(%d+)")
     if not speciesID then return end
 
@@ -79,8 +97,13 @@ hooksecurefunc(GameTooltip, "SetBagItem", function(tooltip, bag, slot)
     local price = MyLastPriceDB[key]
     if not price then return end
 
-    BattlePetTooltip:AddLine("|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price))
-    BattlePetTooltip:Show()
+    if not BattlePetTooltip.MyLastPriceLine then
+        BattlePetTooltip.MyLastPriceLine = BattlePetTooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
+        BattlePetTooltip.MyLastPriceLine:SetPoint("TOPLEFT", BattlePetTooltip, "BOTTOMLEFT", 0, -2)
+    end
+
+    BattlePetTooltip.MyLastPriceLine:SetText("|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price))
+    BattlePetTooltip.MyLastPriceLine:Show()
 end)
 
 -- Slash: /mlp reset
