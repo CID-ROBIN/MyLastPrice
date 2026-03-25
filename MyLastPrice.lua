@@ -24,7 +24,17 @@ end
 
 -- Add price to tooltip
 local function MLP_AddPriceToTooltip(tooltip)
-    if not tooltip or not tooltip.GetTooltipData then return end
+    if not tooltip then return end
+
+    -- 🔥 VŽDY SCHOVAT NA ZAČÁTKU
+    if tooltip.MyLastPriceBG then
+        tooltip.MyLastPriceBG:Hide()
+    end
+    if tooltip.MyLastPriceLine then
+        tooltip.MyLastPriceLine:Hide()
+    end
+
+    if not tooltip.GetTooltipData then return end
     local tdata = tooltip:GetTooltipData()
     if not tdata then return end
 
@@ -43,7 +53,7 @@ local function MLP_AddPriceToTooltip(tooltip)
     local price = MyLastPriceDB[key]
     if not price then return end
 
-    -- Create background
+    -- 🔧 vytvoření pozadí
     if not tooltip.MyLastPriceBG then
         tooltip.MyLastPriceBG = CreateFrame("Frame", nil, tooltip, "BackdropTemplate")
         tooltip.MyLastPriceBG:SetPoint("TOPLEFT", tooltip, "BOTTOMLEFT", 0, -2)
@@ -60,30 +70,51 @@ local function MLP_AddPriceToTooltip(tooltip)
         tooltip.MyLastPriceBG:SetFrameLevel(tooltip:GetFrameLevel() - 1)
     end
 
-    -- Create text
+    -- 🔧 vytvoření textu
     if not tooltip.MyLastPriceLine then
         tooltip.MyLastPriceLine = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
         tooltip.MyLastPriceLine:SetPoint("LEFT", tooltip.MyLastPriceBG, "LEFT", 6, 0)
         tooltip.MyLastPriceLine:SetJustifyH("LEFT")
     end
 
-    -- Set text
+    -- nastavíme text
     local text = "|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price)
     tooltip.MyLastPriceLine:SetText(text)
 
-    -- Resize background to match text width
+    -- dynamická šířka pozadí
     local width = tooltip.MyLastPriceLine:GetStringWidth() + 12
     tooltip.MyLastPriceBG:SetWidth(width)
 
+    -- zobrazit
     tooltip.MyLastPriceBG:Show()
     tooltip.MyLastPriceLine:Show()
 end
+
 
 -- Register processors
 if TooltipDataProcessor and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, MLP_AddPriceToTooltip)
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.ItemKey, MLP_AddPriceToTooltip)
 end
+
+-- Vždy schovat náš řádek, když se tooltip schová
+GameTooltip:HookScript("OnHide", function(self)
+    if self.MyLastPriceBG then
+        self.MyLastPriceBG:Hide()
+    end
+    if self.MyLastPriceLine then
+        self.MyLastPriceLine:Hide()
+    end
+end)
+
+ItemRefTooltip:HookScript("OnHide", function(self)
+    if self.MyLastPriceBG then
+        self.MyLastPriceBG:Hide()
+    end
+    if self.MyLastPriceLine then
+        self.MyLastPriceLine:Hide()
+    end
+end)
 
 -- Battle pet cages
 hooksecurefunc(GameTooltip, "SetBagItem", function(tooltip, bag, slot)
