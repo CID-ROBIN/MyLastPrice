@@ -22,24 +22,27 @@ local function MLP_FormatMoney(copper)
     return out
 end
 
--- Add price to tooltip
+-- Skrytý měřící fontstring (vytvoří se jen jednou)
+local MLP_MeasureFrame = CreateFrame("Frame", nil, UIParent)
+MLP_MeasureFrame:Hide()
+
+local MLP_MeasureText = MLP_MeasureFrame:CreateFontString(nil, "OVERLAY", "GameTooltipText")
+
 local function MLP_AddPriceToTooltip(tooltip)
     if not tooltip then return end
 
-    -- 🔥 VŽDY SCHOVAT NA ZAČÁTKU
-    if tooltip.MyLastPriceBG then
-        tooltip.MyLastPriceBG:Hide()
-    end
-    if tooltip.MyLastPriceLine then
-        tooltip.MyLastPriceLine:Hide()
-    end
+    -- vždy schovat staré prvky
+    if tooltip.MyLastPriceBG then tooltip.MyLastPriceBG:Hide() end
+    if tooltip.MyLastPriceLine then tooltip.MyLastPriceLine:Hide() end
 
     if not tooltip.GetTooltipData then return end
     local tdata = tooltip:GetTooltipData()
     if not tdata then return end
 
+    -- ignorujeme battle pet tooltipy
     if tdata.battlePetSpeciesID and tdata.battlePetSpeciesID > 0 then return end
 
+    -- získání itemID
     local key
     if tdata.id then
         key = tdata.id
@@ -53,42 +56,57 @@ local function MLP_AddPriceToTooltip(tooltip)
     local price = MyLastPriceDB[key]
     if not price then return end
 
-    -- 🔧 vytvoření pozadí
+    ---------------------------------------------------------
+    -- VYTVOŘENÍ TEXTU
+    ---------------------------------------------------------
+    local text = "|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price)
+
+    ---------------------------------------------------------
+    -- ZMĚŘENÍ ŠÍŘKY TEXTU MIMO TOOLTIP (bez taintu)
+    ---------------------------------------------------------
+    MLP_MeasureText:SetText(text)
+    local width = MLP_MeasureText:GetStringWidth()
+
+    if not width or width <= 0 then
+        width = 150 -- fallback, ale prakticky nikdy nenastane
+    end
+
+    ---------------------------------------------------------
+    -- VYTVOŘENÍ POZADÍ (bez BackdropTemplate → žádný taint)
+    ---------------------------------------------------------
     if not tooltip.MyLastPriceBG then
-        tooltip.MyLastPriceBG = CreateFrame("Frame", nil, tooltip, "BackdropTemplate")
+        tooltip.MyLastPriceBG = CreateFrame("Frame", nil, tooltip)
         tooltip.MyLastPriceBG:SetPoint("TOPLEFT", tooltip, "BOTTOMLEFT", 0, -2)
         tooltip.MyLastPriceBG:SetHeight(18)
 
-        tooltip.MyLastPriceBG:SetBackdrop({
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = true, tileSize = 16, edgeSize = 12,
-            insets = { left = 2, right = 2, top = 2, bottom = 2 }
-        })
-        tooltip.MyLastPriceBG:SetBackdropColor(0, 0, 0, 0.85)
+        tooltip.MyLastPriceBG.tex = tooltip.MyLastPriceBG:CreateTexture(nil, "BACKGROUND")
+        tooltip.MyLastPriceBG.tex:SetAllPoints()
+        tooltip.MyLastPriceBG.tex:SetColorTexture(0, 0, 0, 0.85)
 
         tooltip.MyLastPriceBG:SetFrameLevel(tooltip:GetFrameLevel() - 1)
     end
 
-    -- 🔧 vytvoření textu
+    tooltip.MyLastPriceBG:SetWidth(width + 12)
+
+    ---------------------------------------------------------
+    -- VYTVOŘENÍ TEXTU NA TOOLTIPU
+    ---------------------------------------------------------
     if not tooltip.MyLastPriceLine then
         tooltip.MyLastPriceLine = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
         tooltip.MyLastPriceLine:SetPoint("LEFT", tooltip.MyLastPriceBG, "LEFT", 6, 0)
         tooltip.MyLastPriceLine:SetJustifyH("LEFT")
     end
 
-    -- nastavíme text
-    local text = "|cffff8000Moje poslední cena:|r " .. MLP_FormatMoney(price)
     tooltip.MyLastPriceLine:SetText(text)
 
-    -- dynamická šířka pozadí
-    local width = tooltip.MyLastPriceLine:GetStringWidth() + 12
-    tooltip.MyLastPriceBG:SetWidth(width)
-
-    -- zobrazit
+    ---------------------------------------------------------
+    -- ZOBRAZENÍ
+    ---------------------------------------------------------
     tooltip.MyLastPriceBG:Show()
     tooltip.MyLastPriceLine:Show()
 end
+
+
 
 
 -- Register processors
